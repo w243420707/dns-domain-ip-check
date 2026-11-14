@@ -131,10 +131,25 @@ app/src/main/java/io/github/w243420707/dnspool/
   Engine.kt       轮询引擎、槽位认领、候选池、单条修复
   Service.kt      前台服务、开机自启、看门狗
   SelfTest.kt     9 步自检
-  MainActivity.kt / UiKit.kt   三页签界面
+  MainActivity.kt / UiKit.kt   骨架、状态带、刷新管线、组件库
+  Snapshot.kt     一帧数据快照 + Page/Host 契约
+  ui/             StatusPage / SlotsPage / SlotAdapter / SettingsPage / Dialogs
 ```
 
 ## Changelog
+
+### 2.0.0
+
+界面按"运维盯屏"重做，信息密度优先。
+
+- 顶部换成 44dp 状态带：状态点 + `正常/总数` + 候选池 + 启动/暂停，去掉 App 大标题。
+- 状态页改为「数字带 + 单行动作 + 异常清单 + 上轮摘要 + 4 行日志」，首屏可读信息从 4 项增到 9 项。
+- 槽位页改成单行 36dp 列表（RecyclerView），一屏约 17 条，200 条不再截断到 60；默认异常优先排序，支持切换按编号。
+- 设置页改成「常用展开 / Cloudflare 折叠 / 高级折叠」，总高从约 1700dp 降到约 500dp；点行弹窗编辑，确定即落盘。
+- 刷新管线重做：快照在 IO 线程读、250ms 合并、文本脏值比较、列表 DiffUtil，稳态刷新不再重建视图。
+- 「预览差异」改为长按「重建」，高级组另有一个入口，零写入。
+- 异常行的「重测」触发一轮完整轮询（不新增单条探测路径，避免与循环互斥）。
+- 修掉 Android 15 上内容顶到状态栏下的问题（edge-to-edge + insets）。
 
 ### 1.0.0
 

@@ -1,7 +1,7 @@
 import java.util.Properties
 
-val appVersionName = "1.0.0"
-val appVersionCode = 1
+val appVersionName = "2.0.0"
+val appVersionCode = 2
 
 val ksProps = Properties().apply {
     val f = rootProject.file("keystore.properties")
@@ -67,6 +67,7 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.lifecycle:lifecycle-service:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

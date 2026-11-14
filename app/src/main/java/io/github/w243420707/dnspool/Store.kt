@@ -137,6 +137,26 @@ fun fmtTime(ms: Long): String {
     return sdf.format(java.util.Date(ms))
 }
 
+/** 只到分钟与秒，给 18dp 高的日志行用 */
+fun fmtClock(ms: Long): String {
+    if (ms <= 0) return "--:--:--"
+    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.CHINA)
+    return sdf.format(java.util.Date(ms))
+}
+
+/** 相对时间，运维扫一眼就知道新旧 */
+fun fmtAgo(ms: Long, now: Long = System.currentTimeMillis()): String {
+    if (ms <= 0) return "—"
+    val sec = (now - ms) / 1000
+    return when {
+        sec < 0 -> "刚刚"
+        sec < 60 -> "${sec} 秒前"
+        sec < 3600 -> "${sec / 60} 分钟前"
+        sec < 86400 -> "${sec / 3600} 小时前"
+        else -> "${sec / 86400} 天前"
+    }
+}
+
 /* ============================ 状态仓库 ============================ */
 
 class StateRepository private constructor(context: Context) {

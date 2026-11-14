@@ -94,7 +94,7 @@
     <div class="step-head"><span class="num">01</span><h3>装上去</h3></div>
     <p>在云手机的浏览器里直接打开 Release 里的 APK 下载安装，或用电脑 adb 推过去。</p>
     <pre>adb install -r dns-pool-1.0.0.apk</pre>
-    <div class="pass"><b>通过</b><span>桌面出现「DNS 池守护」，打开后是三页签：概览 / 槽位 / 设置。</span></div>
+    <div class="pass"><b>通过</b><span>桌面出现「DNS 池守护」，打开后是三页签：状态 / 槽位 / 设置。</span></div>
     <div class="fail"><b>装不上</b>：确认 Android 8.0 以上；部分云手机默认禁止"未知来源"，需要在系统设置里放行当前浏览器或文件管理器。</div>
   </div>
 
@@ -102,7 +102,7 @@
     <div class="step-head"><span class="num">02</span><h3>把后台放行</h3></div>
     <p>这一步决定它能不能 7×24 活着，比什么都重要。</p>
     <ul>
-      <li>概览页顶部提示条 → 允许通知（Android 13+ 必须）</li>
+      <li>状态页顶部提示条 → 允许通知（Android 13+ 必须）</li>
       <li>同一提示条 → 加入电池优化白名单</li>
       <li>云手机厂商自己的"自启动 / 后台运行白名单"里再放行一次（每家叫法不同）</li>
     </ul>
@@ -125,14 +125,14 @@
 
   <div class="step">
     <div class="step-head"><span class="num">04</span><h3>先自检，再动手</h3></div>
-    <p>填好端口（默认 <code>443,80</code>，全部端口都通才算可用）和域名列表（一行一个，<code>#</code> 开头是注释），然后点「运行自检」。</p>
+    <p>填好端口（默认 <code>443,80</code>，全部端口都通才算可用）和域名列表（一行一个，<code>#</code> 开头是注释），然后点「自检」。</p>
     <div class="pass"><b>通过</b><span>9 项全绿，最后一行是「—— 9/9 通过 ——」。其中「差异预览」会告诉你本次将要创建多少条。</span></div>
     <div class="fail"><b>DNS 解析失败</b>：目标域名的系统 DNS 被污染，去 DNS 分组把解析方式切成"指定 UDP"，填 <code>223.5.5.5</code> 再测。<b>端口不通</b>：换一个域名或端口试，确认不是本机网络问题。</div>
   </div>
 
   <div class="step">
     <div class="step-head"><span class="num">05</span><h3>第一次发布</h3></div>
-    <p>点「预览差异」先看数字，再点「重建 N 条」（会二次确认）。默认 N=200，槽位模式下记录名是 <code>n001.你的域名</code> 一直排到 <code>n200</code>。</p>
+    <p>长按「重建」= 预览差异，看过数字后再点「重建」（会二次确认）。默认 N=200，槽位模式下记录名是 <code>n001.你的域名</code> 一直排到 <code>n200</code>。</p>
     <p>写完后去 Cloudflare 后台开 DNS 记录页，鼠标悬停任意一条记录的备注图标：</p>
     <pre>dslk1|s=001|r=42/58|u=1763100000|d=jp1.example.net</pre>
     <div class="pass"><b>通过</b><span>记录数与 N 一致；备注以 <code>dslk1|</code> 开头且槽位号连续；颜色是灰云（DNS only）。</span></div>
@@ -144,17 +144,17 @@
     <p>这是整个 App 的关键行为，务必实测一次。</p>
     <ul>
       <li>在 Cloudflare 后台把 <code>n001</code> 的 IP 手工改成 <code>1.1.1.1</code></li>
-      <li>回 App 概览页点「跑一轮」，等它判定失败（默认连续 2 次才动手，所以跑两轮）</li>
+      <li>回 App 状态页点「跑一轮」，等它判定失败（默认连续 2 次才动手，所以跑两轮）</li>
       <li>再刷新 Cloudflare 后台</li>
     </ul>
     <div class="pass"><b>通过</b><span>n001 被换成一个可用 IP、备注里的时间戳更新；<b>其余 199 条记录的时间戳完全没变</b>；日志里出现「槽位 1 …→…（xx ms）」。</span></div>
-    <div class="fail"><b>全部被重写</b>：不正常，说明差异计划器失效，请保留 CF 审计日志反馈。<b>一直不修</b>：检查候选池数字是否为 0，为 0 就把域名列表加长或点「重建 N 条」重新补货。</div>
+    <div class="fail"><b>全部被重写</b>：不正常，说明差异计划器失效，请保留 CF 审计日志反馈。<b>一直不修</b>：检查候选池数字是否为 0，为 0 就把域名列表加长或点「重建」重新补货。</div>
   </div>
 
   <div class="step">
     <div class="step-head"><span class="num">07</span><h3>断网恢复与日常巡检</h3></div>
     <p>开飞行模式 5 分钟再关掉。</p>
-    <div class="pass"><b>通过</b><span>通知恢复为「运行中」，概览页"最后心跳"重新变成刚刚；日志里有一条「网络恢复，检查循环」。</span></div>
+    <div class="pass"><b>通过</b><span>通知恢复为「运行中」，状态页"最近写入"重新变成刚刚；日志里有一条「网络恢复，检查循环」。</span></div>
     <div class="grid">
       <div class="metric"><span>日常只看三个数</span><strong>正常 x/200 · 候选池 n · 最后心跳</strong></div>
       <div class="metric"><span>心跳变红</span><strong>超过 120 秒没更新 = 服务被杀了</strong></div>

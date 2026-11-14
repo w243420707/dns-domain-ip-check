@@ -2,11 +2,33 @@
 <resources>
     <style name="Theme.DnsPool" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/bg</item>
-        <item name="android:statusBarColor">@color/bg</item>
-        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:colorBackground">@color/bg</item>
         <item name="colorAccent">@color/accent</item>
         <item name="android:textColorPrimary">@color/text</item>
         <item name="android:textColorSecondary">@color/sub</item>
+        <item name="alertDialogTheme">@style/Theme.DnsPool.Dialog</item>
+    </style>
+
+    <!-- 深色弹窗：默认 AlertDialog 会带白底，必须显式指定 -->
+    <style name="Theme.DnsPool.Dialog" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@color/surface</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/sub</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+    </style>
+
+    <!-- 全屏弹层（日志、域名编辑）：非浮动窗口才能随输入法 resize -->
+    <style name="Theme.DnsPool.FullScreen" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="colorAccent">@color/accent</item>
     </style>
 </resources>

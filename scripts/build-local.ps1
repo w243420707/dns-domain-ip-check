@@ -29,8 +29,13 @@ $env:ANDROID_HOME = $sdk
 Write-Host "ANDROID_HOME = $sdk"
 
 function Invoke-Gradle([string[]]$Tasks) {
-    & "$root\gradlew.bat" @Tasks --no-daemon --console=plain
-    if ($LASTEXITCODE -ne 0) { throw "gradle 失败，退出码 $LASTEXITCODE" }
+    # gradle 会把告警写到 stderr，Stop 模式下会被当成 NativeCommandError 直接中断，这里放宽一档
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & "$root\gradlew.bat" @Tasks --no-daemon --console=plain 2>&1 | ForEach-Object { Write-Host $_ }
+    $code = $LASTEXITCODE
+    $ErrorActionPreference = $prev
+    if ($code -ne 0) { throw "gradle 失败，退出码 $code" }
 }
 
 switch ($Target) {

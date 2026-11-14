@@ -19,3 +19,6 @@ dist/
 # 日志
 debug.log
 build-*.log
+
+# 工作区记忆与本地构建环境
+.workbuddy/
