@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DNS 池守护 · 验收清单</title>
+<style>
+  :root{
+    --bg:#0f1116; --surface:#181b22; --surface2:#20242d; --stroke:#2c313c;
+    --text:#e8eaf0; --sub:#98a0b3; --accent:#5ee1a6; --warn:#f2c14e;
+    --danger:#f2605c; --info:#6faeff; --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 72px}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+  h1{margin:0;font-size:26px;font-weight:600;letter-spacing:-.01em}
+  .lead{color:var(--sub);margin:6px 0 0;font-size:13px}
+  .links{display:flex;gap:8px;flex-wrap:wrap}
+  .links a{color:var(--text);text-decoration:none;font-size:12px;border:1px solid var(--stroke);
+    padding:6px 10px;border-radius:8px;background:var(--surface)}
+  .links a:hover{border-color:var(--sub)}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:3px 8px;border-radius:999px;
+    background:rgba(94,225,166,.12);color:var(--accent);border:1px solid rgba(94,225,166,.3)}
+  .flow{margin:28px 0 32px;padding:18px;background:var(--surface);border:1px solid var(--stroke);border-radius:14px}
+  .flow h2{margin:0 0 14px;font-size:13px;font-weight:500;color:var(--sub);letter-spacing:.04em}
+  .chain{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
+  .node{background:var(--surface2);border:1px solid var(--stroke);border-radius:8px;padding:7px 10px;white-space:nowrap}
+  .node.hot{border-color:rgba(242,193,78,.45);background:rgba(242,193,78,.08);color:#f6d27a}
+  .arrow{color:var(--sub);font-size:12px}
+  .step{background:var(--surface);border:1px solid var(--stroke);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .step-head{display:flex;gap:12px;align-items:baseline}
+  .num{font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid rgba(94,225,166,.35);
+    background:rgba(94,225,166,.08);border-radius:6px;padding:2px 7px;flex:none}
+  .step h3{margin:0;font-size:16px;font-weight:600}
+  .step p{margin:10px 0 0;color:var(--sub);font-size:13px}
+  .step ul{margin:10px 0 0;padding-left:18px;color:var(--sub);font-size:13px}
+  .step li{margin:6px 0}
+  code{font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--stroke);
+    border-radius:5px;padding:1px 5px;color:#cdd3e0}
+  pre{font-family:var(--mono);font-size:12px;background:#12151c;border:1px solid var(--stroke);
+    border-radius:10px;padding:12px 14px;overflow:auto;color:#cdd3e0;margin:12px 0 0}
+  .pass{margin-top:14px;display:flex;gap:10px;align-items:flex-start;font-size:13px;
+    background:rgba(94,225,166,.06);border:1px solid rgba(94,225,166,.22);border-radius:10px;padding:10px 12px}
+  .pass b{color:var(--accent);font-weight:500;flex:none}
+  .fail{margin-top:8px;font-size:12.5px;color:var(--sub);border-left:2px solid var(--warn);padding-left:10px}
+  .fail b{color:var(--warn);font-weight:500}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:14px}
+  .metric{background:var(--surface2);border:1px solid var(--stroke);border-radius:10px;padding:12px}
+  .metric span{display:block;font-size:11px;color:var(--sub);margin-bottom:4px}
+  .metric strong{font-size:14px;font-weight:500}
+  .note{margin-top:22px;padding:16px 18px;border-radius:12px;background:rgba(111,174,255,.06);
+    border:1px solid rgba(111,174,255,.22);font-size:13px;color:#c6d6ee}
+  .note b{color:var(--info);font-weight:500}
+  footer{margin-top:32px;color:var(--sub);font-size:12px;text-align:center}
+  @media (max-width:560px){
+    .wrap{padding:24px 16px 48px}
+    h1{font-size:21px}
+    .chain{font-size:11px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="badge">v1.0.0 已发布</div>
+      <h1 style="margin-top:10px">DNS 池守护 · 验收清单</h1>
+      <p class="lead">按顺序做完 7 步，约 15 分钟。每步都写了"怎么算通过"和"不对时看哪里"。</p>
+    </div>
+    <div class="links">
+      <a href="https://github.com/w243420707/dns-domain-ip-check/releases/download/v1.0.0/dns-pool-1.0.0.apk">下载 APK</a>
+      <a href="https://github.com/w243420707/dns-domain-ip-check">仓库</a>
+      <a href="https://github.com/w243420707/dns-domain-ip-check/releases/tag/v1.0.0">Release</a>
+    </div>
+  </header>
+
+  <section class="flow">
+    <h2>它在你手机里干的事</h2>
+    <div class="chain">
+      <span class="node">域名列表</span><span class="arrow">→</span>
+      <span class="node">解析 A 记录</span><span class="arrow">→</span>
+      <span class="node">多端口全通</span><span class="arrow">→</span>
+      <span class="node">取最快 N 条</span><span class="arrow">→</span>
+      <span class="node">写入 Cloudflare</span><span class="arrow">→</span>
+      <span class="node hot">坏一条只修一条</span>
+    </div>
+  </section>
+
+  <div class="step">
+    <div class="step-head"><span class="num">01</span><h3>装上去</h3></div>
+    <p>在云手机的浏览器里直接打开 Release 里的 APK 下载安装，或用电脑 adb 推过去。</p>
+    <pre>adb install -r dns-pool-1.0.0.apk</pre>
+    <div class="pass"><b>通过</b><span>桌面出现「DNS 池守护」，打开后是三页签：概览 / 槽位 / 设置。</span></div>
+    <div class="fail"><b>装不上</b>：确认 Android 8.0 以上；部分云手机默认禁止"未知来源"，需要在系统设置里放行当前浏览器或文件管理器。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">02</span><h3>把后台放行</h3></div>
+    <p>这一步决定它能不能 7×24 活着，比什么都重要。</p>
+    <ul>
+      <li>概览页顶部提示条 → 允许通知（Android 13+ 必须）</li>
+      <li>同一提示条 → 加入电池优化白名单</li>
+      <li>云手机厂商自己的"自启动 / 后台运行白名单"里再放行一次（每家叫法不同）</li>
+    </ul>
+    <div class="pass"><b>通过</b><span>通知栏出现常驻通知「DNS 池守护 · 运行中」，划掉最近任务后通知仍在。</span></div>
+    <div class="fail"><b>划掉就消失</b>：说明厂商在杀进程，回到上一步找厂商的白名单设置；App 内部已用 specialUse 前台服务 + 15 分钟看门狗。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">03</span><h3>接上 Cloudflare</h3></div>
+    <p>Cloudflare 控制台 → 我的个人资料 → API 令牌 → 创建自定义令牌。权限只给两项：</p>
+    <ul>
+      <li><code>Zone → DNS → 编辑</code></li>
+      <li><code>Zone → Zone → 读取</code></li>
+      <li>Zone 资源限定到你要用的那个域名</li>
+    </ul>
+    <p>回到 App 设置页：粘贴 Token、填根域名（例如 <code>example.com</code>，不要带 https://），点旁边的「校验」。</p>
+    <div class="pass"><b>通过</b><span>提示「Token 有效；Zone example.com 已用 x/200 条」，配额数字和你在 CF 后台看到的一致。</span></div>
+    <div class="fail"><b>Token 无效</b>：多半是复制时带了空格或被撤销，重新生成一个。<b>权限不足</b>：令牌少了 Zone:Read 或 DNS:Edit。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">04</span><h3>先自检，再动手</h3></div>
+    <p>填好端口（默认 <code>443,80</code>，全部端口都通才算可用）和域名列表（一行一个，<code>#</code> 开头是注释），然后点「运行自检」。</p>
+    <div class="pass"><b>通过</b><span>9 项全绿，最后一行是「—— 9/9 通过 ——」。其中「差异预览」会告诉你本次将要创建多少条。</span></div>
+    <div class="fail"><b>DNS 解析失败</b>：目标域名的系统 DNS 被污染，去 DNS 分组把解析方式切成"指定 UDP"，填 <code>223.5.5.5</code> 再测。<b>端口不通</b>：换一个域名或端口试，确认不是本机网络问题。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">05</span><h3>第一次发布</h3></div>
+    <p>点「预览差异」先看数字，再点「重建 N 条」（会二次确认）。默认 N=200，槽位模式下记录名是 <code>n001.你的域名</code> 一直排到 <code>n200</code>。</p>
+    <p>写完后去 Cloudflare 后台开 DNS 记录页，鼠标悬停任意一条记录的备注图标：</p>
+    <pre>dslk1|s=001|r=42/58|u=1763100000|d=jp1.example.net</pre>
+    <div class="pass"><b>通过</b><span>记录数与 N 一致；备注以 <code>dslk1|</code> 开头且槽位号连续；颜色是灰云（DNS only）。</span></div>
+    <div class="fail"><b>提示额度不足</b>：免费版 Zone 上限 200 条（2024-09 后创建），把 N 调小到提示的数字以内。<b>提示"记录名不符"</b>：说明之前用过别的前缀，先到设置页「删除我管理的记录」再重建。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">06</span><h3>验收核心：改坏一条，看它会不会只修这一条</h3></div>
+    <p>这是整个 App 的关键行为，务必实测一次。</p>
+    <ul>
+      <li>在 Cloudflare 后台把 <code>n001</code> 的 IP 手工改成 <code>1.1.1.1</code></li>
+      <li>回 App 概览页点「跑一轮」，等它判定失败（默认连续 2 次才动手，所以跑两轮）</li>
+      <li>再刷新 Cloudflare 后台</li>
+    </ul>
+    <div class="pass"><b>通过</b><span>n001 被换成一个可用 IP、备注里的时间戳更新；<b>其余 199 条记录的时间戳完全没变</b>；日志里出现「槽位 1 …→…（xx ms）」。</span></div>
+    <div class="fail"><b>全部被重写</b>：不正常，说明差异计划器失效，请保留 CF 审计日志反馈。<b>一直不修</b>：检查候选池数字是否为 0，为 0 就把域名列表加长或点「重建 N 条」重新补货。</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="num">07</span><h3>断网恢复与日常巡检</h3></div>
+    <p>开飞行模式 5 分钟再关掉。</p>
+    <div class="pass"><b>通过</b><span>通知恢复为「运行中」，概览页"最后心跳"重新变成刚刚；日志里有一条「网络恢复，检查循环」。</span></div>
+    <div class="grid">
+      <div class="metric"><span>日常只看三个数</span><strong>正常 x/200 · 候选池 n · 最后心跳</strong></div>
+      <div class="metric"><span>心跳变红</span><strong>超过 120 秒没更新 = 服务被杀了</strong></div>
+      <div class="metric"><span>候选池见底</span><strong>等于 0 就该补域名或重建</strong></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>想彻底重来</b>：设置页最下方「删除我管理的记录」，只删备注以 <code>dslk1</code> 开头的记录，别人的记录一条都不动。
+    <br><b>想换手机</b>：装好后填同一个 Token 和根域名即可——程序会扫描备注把 200 个槽位的记录 ID 认领回来，不会重复建。
+  </div>
+
+  <footer>DNS 池守护 v1.0.0 · 包名 io.github.w243420707.dnspool · 签名 CN=DNS Pool Keeper</footer>
+</div>
+</body>
+</html>

@@ -47,6 +47,8 @@ adb install -r dns-pool-1.0.0.apk
 
 最低 Android 8.0（API 26），不需要 root，不需要 Google 服务。
 
+装好之后按 [`docs/verify.html`](docs/verify.html) 走一遍验收（7 步，约 15 分钟），里面有每步的通过标准和排错指引。
+
 ## 首次配置
 
 1. **Cloudflare Token**：控制台 → 我的个人资料 → API 令牌 → 创建自定义令牌，权限只要 `Zone → DNS → 编辑` 和 `Zone → Zone → 读取`，Zone 资源限定到目标域名。
