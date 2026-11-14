@@ -161,25 +161,32 @@ class PollEngine(private val repo: StateRepository) {
             val broken = updated.filter { it.consecutiveFailures >= s.failThreshold && it.recordId != null }
                 .take(s.maxRepairsPerCycle)
             var repairs = 0
+            var forceRescanned = false
             if (broken.isNotEmpty()) {
                 val usedIps = updated.mapNotNull { it.ip }.toMutableSet()
                 var pool = ensurePool(s, zoneId, force = false)
                 for (slot in broken) {
-                    val patched = repairOne(s, zoneId, slot, pool, usedIps)
-                    if (patched != null) {
-                        updated = updated.map { if (it.index == slot.index) patched else it }
-                        usedIps += patched.ip!!
-                        repairs++
-                        repo.saveSlots(updated)
-                    } else {
-                        // 池里挑不出可用替补：拉黑该槽位旧 IP 并标记，下轮再试
-                        pool = ensurePool(s, zoneId, force = true)
-                        val retry = repairOne(s, zoneId, slot, pool, usedIps)
-                        if (retry != null) {
-                            updated = updated.map { if (it.index == slot.index) retry else it }
-                            usedIps += retry.ip!!
+                    when (val r = repairOne(s, zoneId, slot, pool, usedIps)) {
+                        is Repair.Done -> {
+                            updated = updated.map { if (it.index == slot.index) r.slot else it }
+                            usedIps += r.slot.ip!!
                             repairs++
                             repo.saveSlots(updated)
+                        }
+                        // 写 CF 失败（权限/限流/网络），重扫一遍也是白扫，下一轮再试
+                        Repair.WriteFailed -> Unit
+                        Repair.NoCandidate -> {
+                            if (!forceRescanned) {
+                                pool = ensurePool(s, zoneId, force = true)
+                                forceRescanned = true
+                            }
+                            val retry = repairOne(s, zoneId, slot, pool, usedIps)
+                            if (retry is Repair.Done) {
+                                updated = updated.map { if (it.index == slot.index) retry.slot else it }
+                                usedIps += retry.slot.ip!!
+                                repairs++
+                                repo.saveSlots(updated)
+                            }
                         }
                     }
                 }
@@ -207,14 +214,21 @@ class PollEngine(private val repo: StateRepository) {
 
     /* ======================= 单条修复 ======================= */
 
+    /** 修复结果：区分「池里没货」和「写 CF 失败」，前者才值得重扫 */
+    private sealed class Repair {
+        data class Done(val slot: Slot) : Repair()
+        object NoCandidate : Repair()
+        object WriteFailed : Repair()
+    }
+
     private suspend fun repairOne(
         s: AppSettings,
         zoneId: String,
         slot: Slot,
         pool: List<IpCandidate>,
         usedIps: Set<String>
-    ): Slot? {
-        val recordId = slot.recordId ?: return null
+    ): Repair {
+        val recordId = slot.recordId ?: return Repair.NoCandidate
         val now = System.currentTimeMillis()
         val candidates = CandidatePicker.pick(pool, usedIps, now, s.verifyCandidates)
 
@@ -239,19 +253,20 @@ class PollEngine(private val repo: StateRepository) {
                     CfRecordPatch(content = cand.ip, comment = comment, ttl = s.ttlSec)
                 )
                 log.add("I", "槽位 ${slot.index} ${slot.name}：${slot.ip ?: "-"} -> ${cand.ip}（${verify.avgRttMs}ms）")
-                slot.copy(
-                    ip = cand.ip, comment = comment, state = SlotState.OK,
-                    consecutiveFailures = 0, lastProbeAt = now, lastOkAt = now,
-                    lastAvgRttMs = verify.avgRttMs, lastMaxRttMs = verify.maxRttMs,
-                    lastWrittenAt = now, pendingRepair = false
+                Repair.Done(
+                    slot.copy(
+                        ip = cand.ip, comment = comment, state = SlotState.OK,
+                        consecutiveFailures = 0, lastProbeAt = now, lastOkAt = now,
+                        lastAvgRttMs = verify.avgRttMs, lastMaxRttMs = verify.maxRttMs,
+                        lastWrittenAt = now, pendingRepair = false
+                    )
                 )
             } catch (e: Exception) {
                 log.add("E", "槽位 ${slot.index} 修复失败：${humanError(e)}")
-                if (e is CfException && !e.retryable) return null
-                null
+                Repair.WriteFailed
             }
         }
-        return null
+        return Repair.NoCandidate
     }
 
     private fun banCandidate(ip: String) {
