@@ -83,7 +83,12 @@ class MainActivity : AppCompatActivity(), Host {
         content.removeViewAt(0)
         content.addView(statusPage.view, 0, FrameLayout.LayoutParams(-1, -1))
         selectTab(0)
-        if (repo.settings().cfToken.isBlank()) guide()
+        val s = repo.settings()
+        // 上次是自动运行状态的话，重新打开 App 要接着跑（v2.0.0 漏了这一步）
+        if (s.autoRun && s.cfToken.isNotBlank() && s.rootDomain.isNotBlank()) {
+            KeepAliveService.command(this, KeepAliveService.ACTION_START)
+        }
+        if (s.cfToken.isBlank()) guide()
         requestRefresh()
     }
 

@@ -71,7 +71,10 @@ class KeepAliveService : LifecycleService() {
     private lateinit var repo: StateRepository
     private lateinit var engine: PollEngine
     private val loopMutex = Mutex()
+    private val loopLock = Any()
     private var loopJob: Job? = null
+    @Volatile
+    private var loopRunning = false
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -115,27 +118,45 @@ class KeepAliveService : LifecycleService() {
     /* ---------------- 循环 ---------------- */
 
     private fun startLoop() {
-        if (loopJob?.isActive == true) return
-        loopJob = lifecycleScope.launch {
-            repo.saveRunState(repo.runState().copy(running = true))
-            while (isActive) {
-                val s = repo.settings()
-                if (!s.autoRun) break
-                val stats = lockedCycle("定时")
-                updateNotificationFromState(stats.note, stats.result)
-                val wait = s.minLoopIntervalMs.coerceAtLeast(0L)
-                repo.saveRunState(repo.runState().copy(nextRunAt = System.currentTimeMillis() + wait))
-                notifyUi(this@KeepAliveService)
-                if (wait > 0) delay(wait)
+        // 网络回调在 binder 线程、onCreate 在主线程，两边同时判断 loopJob 为空会各起一个循环，
+        // 表现为同一时刻连着跑两轮。用锁 + 标志位双保险。
+        synchronized(loopLock) {
+            if (loopRunning || loopJob?.isActive == true) return
+            loopRunning = true
+            loopJob = lifecycleScope.launch {
+                try {
+                    repo.saveRunState(repo.runState().copy(running = true))
+                    while (isActive) {
+                        val s = repo.settings()
+                        if (!s.autoRun) break
+                        val stats = lockedCycle("定时")
+                        updateNotificationFromState(stats.note, stats.result)
+                        // 没有保底间隔时，SKIPPED/ERROR 这类毫秒级返回会满速空转（实测 1.5 秒转 100 轮）
+                        val floor = when {
+                            stats.result == "SKIPPED" || stats.result == "ERROR" -> 5_000L
+                            stats.durationMs < 500 -> 1_000L
+                            else -> 0L
+                        }
+                        val wait = maxOf(s.minLoopIntervalMs.coerceAtLeast(0L), floor)
+                        repo.saveRunState(repo.runState().copy(nextRunAt = System.currentTimeMillis() + wait))
+                        notifyUi(this@KeepAliveService)
+                        if (wait > 0) delay(wait)
+                    }
+                } finally {
+                    loopRunning = false
+                    repo.saveRunState(repo.runState().copy(running = false, phase = "已停止"))
+                    notifyUi(this@KeepAliveService)
+                }
             }
-            repo.saveRunState(repo.runState().copy(running = false, phase = "已停止"))
-            notifyUi(this@KeepAliveService)
         }
     }
 
     private fun stopLoop() {
-        loopJob?.cancel()
-        loopJob = null
+        synchronized(loopLock) {
+            loopJob?.cancel()
+            loopJob = null
+            loopRunning = false
+        }
         repo.saveRunState(repo.runState().copy(running = false, phase = "已停止"))
         notifyUi(this)
     }

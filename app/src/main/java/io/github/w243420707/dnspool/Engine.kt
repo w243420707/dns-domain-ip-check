@@ -131,7 +131,11 @@ class PollEngine(private val repo: StateRepository) {
             // 弱网熔断：整体失败率过高说明是本地网络问题，本轮不累加失败计数
             if (ProbeTuning.looksOffline(results)) {
                 log.add("W", "本轮 ${results.size} 条仅 ${results.count { it.ok }} 条连通，判定本地网络异常，跳过计数")
-                return@withContext finish(startedAt, "OFFLINE", "本地网络异常，已跳过本轮（不累加失败次数）", trigger)
+                return@withContext finish(
+                    startedAt, "OFFLINE", "本地网络异常，已跳过本轮（不累加失败次数）", trigger,
+                    probed = results.size, passed = results.count { it.ok },
+                    durationMs = System.currentTimeMillis() - startedAt
+                )
             }
 
             val byIp = results.associateBy { it.ip }
