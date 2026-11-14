@@ -22,3 +22,6 @@ build-*.log
 
 # 工作区记忆与本地构建环境
 .workbuddy/
+
+# Kotlin 编译错误日志
+.kotlin/
