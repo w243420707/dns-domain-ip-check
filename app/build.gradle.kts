@@ -1,7 +1,7 @@
 import java.util.Properties
 
-val appVersionName = "2.0.2"
-val appVersionCode = 4
+val appVersionName = "2.0.3"
+val appVersionCode = 5
 
 val ksProps = Properties().apply {
     val f = rootProject.file("keystore.properties")

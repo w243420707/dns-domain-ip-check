@@ -46,7 +46,8 @@ class SettingsPage(private val activity: MainActivity) : Page {
     private val conditions = mutableListOf<(AppSettings) -> Unit>()
     private val heads = mutableListOf<LinearLayout>()
     private val bodies = mutableListOf<LinearLayout>()
-    private val expanded = booleanArrayOf(true, false, false)
+    private val expanded = booleanArrayOf(true, false, false, false)
+    private val envUpdaters = mutableListOf<() -> Unit>()
 
     private lateinit var box: LinearLayout
     private var current: AppSettings = io.github.w243420707.dnspool.StateRepository.get(activity).settings()
@@ -70,6 +71,7 @@ class SettingsPage(private val activity: MainActivity) : Page {
         fillCommon(startGroup(0, "常用"))
         fillCloudflare(startGroup(1, "Cloudflare"))
         fillAdvanced(startGroup(2, "高级"))
+        fillEnv(startGroup(3, "运行环境"))
         box.addView(ctx.vSpace(10))
         box.addView(buildDanger(), LinearLayout.LayoutParams(-1, -2).apply {
             leftMargin = px(Dimens.PAGE_PAD)
@@ -106,7 +108,31 @@ class SettingsPage(private val activity: MainActivity) : Page {
     private fun summary(index: Int, s: AppSettings, ok: Int): String = when (index) {
         0 -> "${PortParser.format(s.ports).ifEmpty { "端口未填" }} · N=${s.slotCount}"
         1 -> "${if (s.cfToken.isBlank()) "Token 未填" else "Token 已填"} · ${s.slotCount}/${s.recordLimit}"
-        else -> "并发 ${s.probeConcurrency} · 超时 ${s.connectTimeoutMs}ms"
+        2 -> "并发 ${s.probeConcurrency} · 超时 ${s.connectTimeoutMs}ms"
+        else -> "通知 ${notifyState()} · 电池 ${batteryState()}"
+    }
+
+    /* ------------------------------ 运行环境 ------------------------------ */
+
+    private fun notifyState(): String = if (activity.hasNotificationPermission()) "已允许" else "未允许"
+
+    private fun batteryState(): String {
+        val pm = ctx.getSystemService(android.os.PowerManager::class.java)
+        return if (pm == null || pm.isIgnoringBatteryOptimizations(ctx.packageName)) "已放行" else "受限"
+    }
+
+    private fun fillEnv(body: LinearLayout) {
+        val notifyRow = ctx.settingRow("通知权限", notifyState()) {
+            if (activity.hasNotificationPermission()) host.toast("通知已允许")
+            else activity.requestNotificationPermission()
+        }
+        body.addView(notifyRow)
+        val batteryRow = ctx.settingRow("电池优化", batteryState()) {
+            if (batteryState() == "已放行") host.toast("已在白名单") else host.askBattery()
+        }
+        body.addView(batteryRow)
+        envUpdaters += { notifyRow.rowValue()?.setTextIfChanged(notifyState()) }
+        envUpdaters += { batteryRow.rowValue()?.setTextIfChanged(batteryState()) }
     }
 
     /* ------------------------------ 行工厂 ------------------------------ */
@@ -343,6 +369,8 @@ class SettingsPage(private val activity: MainActivity) : Page {
     /* ------------------------------ 渲染 ------------------------------ */
 
     override fun render(snap: UiSnapshot) {
+        // 权限状态不在 settings 里，每次渲染都要刷一遍
+        envUpdaters.forEach { it() }
         val s = snap.settings
         if (s == lastSettings && snap.okCount == lastOk) return
         lastSettings = s

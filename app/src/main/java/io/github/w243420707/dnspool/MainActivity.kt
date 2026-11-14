@@ -88,7 +88,6 @@ class MainActivity : AppCompatActivity(), Host {
         if (s.autoRun && s.cfToken.isNotBlank() && s.rootDomain.isNotBlank()) {
             KeepAliveService.command(this, KeepAliveService.ACTION_START)
         }
-        if (s.cfToken.isBlank()) guide()
         requestRefresh()
     }
 
@@ -437,13 +436,5 @@ class MainActivity : AppCompatActivity(), Host {
         KeepAliveService.command(this, action)
         toast(message)
         requestRefresh()
-    }
-
-    private fun guide() {
-        confirm(
-            "三步就能跑起来",
-            "1. 设置页填 Cloudflare Token（Zone 读写权限就够）\n2. 填根域名和自己的域名列表\n3. 先「自检」全绿，再点右上角「启动」",
-            "去填写"
-        ) { selectTab(2) }
     }
 }

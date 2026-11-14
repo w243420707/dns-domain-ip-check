@@ -24,19 +24,19 @@ import androidx.recyclerview.widget.RecyclerView
 /* 纯代码建界面的工具集：只用 AppCompat + 原生控件，密度优先。改密度只动 Dimens。 */
 
 object Dimens {
-    const val HEAD_H = 44
-    const val TAB_H = 36
-    const val BAND_H = 56
-    const val ACT_H = 40
-    const val ROW_H = 36
-    const val SET_ROW = 40
-    const val GROUP_H = 30
-    const val PAGE_PAD = 16
+    const val HEAD_H = 42
+    const val TAB_H = 32
+    const val BAND_H = 48
+    const val ACT_H = 36
+    const val ROW_H = 34
+    const val SET_ROW = 38
+    const val GROUP_H = 26
+    const val PAGE_PAD = 12
 
     const val LABEL = 11f
     const val SMALL = 12f
     const val BODY = 13f
-    const val NUM = 18f
+    const val NUM = 16f
 }
 
 internal const val TAG_ROW_VALUE = "ui_row_value"

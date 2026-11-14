@@ -1,12 +1,12 @@
 package io.github.w243420707.dnspool.ui
 
 import android.graphics.Typeface
-import android.os.PowerManager
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -34,22 +34,19 @@ import io.github.w243420707.dnspool.vSpace
 import java.util.Locale
 
 /**
- * 状态页：一屏说清「活着吗 / 有没有坏 / 池还够吗 / 上轮干了啥」。
- * 所有文本走脏值比较，稳态刷新不触发重绘。
+ * 状态页：数字带 → 动作行 → 异常清单 → 上轮摘要 → 4 行日志。
+ * 不放任何权限提示（挪到设置页「运行环境」），没有槽位时不占一块空白。
  */
 class StatusPage(private val activity: MainActivity) : Page {
 
     private val host: Host = activity
     private val ctx = activity
 
-    private lateinit var tipsBar: LinearLayout
-    private lateinit var tipText: TextView
-    private lateinit var tipAction: TextView
-
     private val bandValue = arrayOfNulls<TextView>(4)
-    private lateinit var btnRebuild: android.widget.Button
+    private lateinit var btnRebuild: Button
     private lateinit var errorLine: TextView
 
+    private lateinit var anomalyWrap: LinearLayout
     private lateinit var anomalyTitle: TextView
     private lateinit var viewAll: TextView
     private val rows = mutableListOf<LinearLayout>()
@@ -58,12 +55,12 @@ class StatusPage(private val activity: MainActivity) : Page {
     private val rowFail = mutableListOf<TextView>()
     private val rowBtn = mutableListOf<TextView>()
     private lateinit var allOkLine: TextView
+    private lateinit var emptyHint: TextView
 
     private lateinit var summaryLine: TextView
     private val logLines = mutableListOf<TextView>()
 
     private var currentAnomalies: List<Slot> = emptyList()
-    private val dismissed = mutableSetOf<String>()
     private var lastRenderKey: String? = null
 
     override val view: View = build()
@@ -77,82 +74,51 @@ class StatusPage(private val activity: MainActivity) : Page {
         }
         val box = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(ctx.dp(Dimens.PAGE_PAD), ctx.dp(12), ctx.dp(Dimens.PAGE_PAD), ctx.dp(24))
+            setPadding(ctx.dp(Dimens.PAGE_PAD), ctx.dp(8), ctx.dp(Dimens.PAGE_PAD), ctx.dp(16))
         }
         scroll.addView(box)
 
-        tipsBar = buildTips()
-        box.addView(tipsBar, h(-2).apply { bottomMargin = ctx.dp(10) })
         box.addView(buildBand(), h(ctx.dp(Dimens.BAND_H)))
-        box.addView(ctx.vSpace(12))
+        box.addView(ctx.vSpace(8))
         box.addView(buildActions(), h(ctx.dp(Dimens.ACT_H)))
         box.addView(buildErrorLine(), h(-2))
-        box.addView(ctx.vSpace(14))
-        box.addView(buildAnomalyHeader(), h(ctx.dp(28)))
-        repeat(5) { i -> rows += buildAnomalyRow(i).also { box.addView(it, h(ctx.dp(32))) } }
-        allOkLine = ctx.para("", Dimens.SMALL, R.color.sub).apply {
-            setPadding(0, ctx.dp(6), 0, ctx.dp(6))
-        }
-        box.addView(allOkLine, h(-2))
-        box.addView(ctx.vSpace(12))
+        box.addView(ctx.vSpace(10))
 
+        anomalyWrap = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        anomalyWrap.addView(buildAnomalyHeader(), h(ctx.dp(26)))
+        repeat(5) { i -> rows += buildAnomalyRow(i).also { anomalyWrap.addView(it, h(ctx.dp(30))) } }
+        allOkLine = ctx.para("", Dimens.SMALL, R.color.sub).apply { setPadding(0, ctx.dp(4), 0, 0) }
+        anomalyWrap.addView(allOkLine, h(-2))
+        box.addView(anomalyWrap, h(-2))
+
+        emptyHint = ctx.para("还没有槽位，填好设置后点「重建」", Dimens.SMALL, R.color.sub).apply {
+            setPadding(0, ctx.dp(2), 0, 0)
+            visibility = View.GONE
+        }
+        box.addView(emptyHint, h(ctx.dp(22)))
+
+        box.addView(ctx.vSpace(8))
         summaryLine = ctx.monoPara("", Dimens.LABEL, R.color.sub).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
         }
-        box.addView(summaryLine, h(ctx.dp(24)))
-
-        box.addView(buildLogHeader(), h(ctx.dp(22)).apply { topMargin = ctx.dp(6) })
+        box.addView(summaryLine, h(ctx.dp(20)))
+        box.addView(buildLogHeader(), h(ctx.dp(20)))
         repeat(4) {
             val line = ctx.monoPara("", Dimens.LABEL, R.color.sub).apply {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER_VERTICAL
             }
             logLines += line
-            box.addView(line, h(ctx.dp(18)))
+            box.addView(line, h(ctx.dp(16)))
         }
         return scroll
     }
 
     private fun h(height: Int): LinearLayout.LayoutParams =
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height)
-
-    private fun buildTips(): LinearLayout {
-        val bar = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = ctx.rounded(ctx.soft(R.color.info, 26), 8, ctx.soft(R.color.info, 80))
-            setPadding(ctx.dp(10), 0, ctx.dp(6), 0)
-            visibility = View.GONE
-        }
-        tipText = ctx.para("", Dimens.LABEL, R.color.text).apply {
-            layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
-            gravity = Gravity.CENTER_VERTICAL
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-        }
-        tipAction = ctx.para("", Dimens.LABEL, R.color.info).apply {
-            gravity = Gravity.CENTER
-            setPadding(ctx.dp(8), 0, ctx.dp(8), 0)
-            layoutParams = LinearLayout.LayoutParams(-2, -1)
-            isClickable = true
-        }
-        val close = ctx.para("×", Dimens.BODY, R.color.sub).apply {
-            gravity = Gravity.CENTER
-            setPadding(ctx.dp(6), 0, ctx.dp(4), 0)
-            layoutParams = LinearLayout.LayoutParams(-2, -1)
-            isClickable = true
-            setOnClickListener {
-                dismissed += "notify"
-                dismissed += "battery"
-                tipsBar.visibility = View.GONE
-            }
-        }
-        bar.addView(tipText)
-        bar.addView(tipAction)
-        bar.addView(close)
-        return bar
-    }
 
     private fun buildBand(): LinearLayout {
         val band = LinearLayout(ctx).apply {
@@ -163,7 +129,7 @@ class StatusPage(private val activity: MainActivity) : Page {
             if (i > 0) {
                 band.addView(View(ctx).apply {
                     setBackgroundColor(ctx.color(R.color.stroke))
-                    layoutParams = LinearLayout.LayoutParams(Math.max(1, ctx.dp(1) / 2), ctx.dp(24)).apply {
+                    layoutParams = LinearLayout.LayoutParams(Math.max(1, ctx.dp(1) / 2), ctx.dp(20)).apply {
                         gravity = Gravity.CENTER_VERTICAL
                     }
                 })
@@ -179,12 +145,9 @@ class StatusPage(private val activity: MainActivity) : Page {
             }
             // 额度格可能是 2000/1000 这种长串，按格宽自动缩字号，避免顶到分隔线
             TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-                value, 11, 18, 1, TypedValue.COMPLEX_UNIT_SP
+                value, 11, 16, 1, TypedValue.COMPLEX_UNIT_SP
             )
-            val caption = ctx.para(label, Dimens.LABEL, R.color.sub).apply {
-                gravity = Gravity.CENTER
-                setPadding(0, ctx.dp(1), 0, 0)
-            }
+            val caption = ctx.para(label, Dimens.LABEL, R.color.sub).apply { gravity = Gravity.CENTER }
             cell.addView(value)
             cell.addView(caption)
             band.addView(cell, LinearLayout.LayoutParams(0, -1, 1f))
@@ -208,7 +171,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         val logs = ctx.actionButton("日志") { host.openLogs() }
         listOf(run, btnRebuild, selfTest, logs).forEachIndexed { i, b ->
             row.addView(b, LinearLayout.LayoutParams(0, ctx.dp(Dimens.ACT_H), 1f).apply {
-                if (i > 0) marginStart = ctx.dp(6)
+                if (i > 0) marginStart = ctx.dp(5)
             })
         }
         return row
@@ -218,7 +181,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         errorLine = ctx.para("", Dimens.LABEL, R.color.danger).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-            setPadding(0, ctx.dp(6), 0, 0)
+            setPadding(0, ctx.dp(4), 0, 0)
             visibility = View.GONE
             setOnClickListener { host.openLogs() }
         }
@@ -264,7 +227,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         }
         val btn = ctx.para("重测", Dimens.LABEL, R.color.info).apply {
             background = ctx.rounded(ctx.soft(R.color.info, 26), 6)
-            setPadding(ctx.dp(9), ctx.dp(4), ctx.dp(9), ctx.dp(4))
+            setPadding(ctx.dp(9), ctx.dp(3), ctx.dp(9), ctx.dp(3))
             isClickable = true
         }
         row.addView(idx)
@@ -289,6 +252,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         })
         row.addView(ctx.para("全部", Dimens.LABEL, R.color.info).apply {
             gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
             isClickable = true
             setOnClickListener { host.openLogs() }
         })
@@ -298,8 +262,6 @@ class StatusPage(private val activity: MainActivity) : Page {
     /* ------------------------------ 渲染 ------------------------------ */
 
     override fun render(snap: UiSnapshot) {
-        renderTips()
-
         val s = snap.settings
         val rs = snap.run
         val bad = snap.badSlots
@@ -336,38 +298,39 @@ class StatusPage(private val activity: MainActivity) : Page {
             errorLine.setTextIfChanged("! ${rs.lastError}")
         }
 
-        anomalyTitle.setTextIfChanged("异常 ${bad.size} 条")
-        viewAll.visibility = if (bad.size > 5) View.VISIBLE else View.GONE
-        currentAnomalies = bad
-        rows.forEachIndexed { i, row ->
-            val slot = bad.getOrNull(i)
-            if (slot == null) {
-                row.visibility = View.GONE
-            } else {
-                row.visibility = View.VISIBLE
-                rowIndex[i].setTextIfChanged(slot.index.toString().padStart(s.slotPad.coerceIn(1, 4), '0'))
-                rowIndex[i].setTextColorIfChanged(
-                    ctx.color(if (slot.state == SlotState.DOWN) R.color.danger else R.color.warn)
-                )
-                rowIp[i].setTextIfChanged(slot.ip ?: "—")
-                rowFail[i].setTextIfChanged("失败 ${slot.consecutiveFailures} 次")
-            }
-        }
-        rowBtn.forEachIndexed { i, btn ->
-            btn.setOnClickListener { currentAnomalies.getOrNull(i)?.let { host.retest(it) } }
-        }
+        // 一条槽位都没有时，整块异常区是噪音，收起来只留一行提示
+        val hasSlots = snap.total > 0
+        anomalyWrap.visibility = if (hasSlots) View.VISIBLE else View.GONE
+        emptyHint.visibility = if (hasSlots) View.GONE else View.VISIBLE
+        // 空态下「还没有跑过一轮」也是废话，一起隐掉
+        summaryLine.visibility = if (hasSlots) View.VISIBLE else View.GONE
 
-        when {
-            snap.total == 0 -> {
-                allOkLine.visibility = View.VISIBLE
-                allOkLine.setTextIfChanged("还没有槽位，填好设置后点「重建」")
+        if (hasSlots) {
+            anomalyTitle.setTextIfChanged("异常 ${bad.size} 条")
+            viewAll.visibility = if (bad.size > 5) View.VISIBLE else View.GONE
+            currentAnomalies = bad
+            rows.forEachIndexed { i, row ->
+                val slot = bad.getOrNull(i)
+                if (slot == null) {
+                    row.visibility = View.GONE
+                } else {
+                    row.visibility = View.VISIBLE
+                    rowIndex[i].setTextIfChanged(slot.index.toString().padStart(s.slotPad.coerceIn(1, 4), '0'))
+                    rowIndex[i].setTextColorIfChanged(
+                        ctx.color(if (slot.state == SlotState.DOWN) R.color.danger else R.color.warn)
+                    )
+                    rowIp[i].setTextIfChanged(slot.ip ?: "—")
+                    rowFail[i].setTextIfChanged("失败 ${slot.consecutiveFailures} 次")
+                }
             }
-            bad.isEmpty() -> {
-                allOkLine.visibility = View.VISIBLE
+            rowBtn.forEachIndexed { i, btn ->
+                btn.setOnClickListener { currentAnomalies.getOrNull(i)?.let { host.retest(it) } }
+            }
+            allOkLine.visibility = if (bad.isEmpty()) View.VISIBLE else View.GONE
+            if (bad.isEmpty()) {
                 val ago = if (snap.lastWriteAt > 0) " · 最近写入 ${fmtAgo(snap.lastWriteAt, snap.now)}" else ""
                 allOkLine.setTextIfChanged("全部正常$ago")
             }
-            else -> allOkLine.visibility = View.GONE
         }
 
         val st = snap.stats
@@ -386,7 +349,6 @@ class StatusPage(private val activity: MainActivity) : Page {
         logLines.forEachIndexed { i, line ->
             val entry = logs.getOrNull(i)
             if (entry == null) {
-                // 空态落在第一行，不留大片空白
                 line.visibility = if (i == 0) View.VISIBLE else View.GONE
                 if (i == 0) {
                     line.setTextIfChanged("还没有日志")
@@ -405,35 +367,6 @@ class StatusPage(private val activity: MainActivity) : Page {
                     )
                 )
             }
-        }
-    }
-
-    private fun renderTips() {
-        val pm = ctx.getSystemService(PowerManager::class.java)
-        val batteryOk = pm == null || pm.isIgnoringBatteryOptimizations(ctx.packageName)
-        val notifyOk = activity.hasNotificationPermission()
-
-        if (!notifyOk && "notify" !in dismissed) {
-            showTip("notify", "通知权限没开，锁屏后看不到守护状态。", "去开启") {
-                activity.requestNotificationPermission()
-            }
-        } else if (!batteryOk && "battery" !in dismissed) {
-            showTip("battery", "电池优化在限制后台，云手机可能把守护冻结。", "去设置") {
-                host.askBattery()
-            }
-        } else {
-            tipsBar.visibility = View.GONE
-        }
-    }
-
-    private fun showTip(key: String, text: String, actionText: String, action: () -> Unit) {
-        tipsBar.visibility = View.VISIBLE
-        tipText.setTextIfChanged(text)
-        tipAction.setTextIfChanged(actionText)
-        tipAction.setOnClickListener {
-            dismissed += key
-            action()
-            tipsBar.visibility = View.GONE
         }
     }
 }

@@ -192,7 +192,7 @@ class SlotsPage(private val activity: MainActivity) : Page {
         listAdapter.submitList(rows)
     }
 
-    private fun sortText(): String = if (sortByState) "异常优先 ⇄" else "按编号 ⇄"
+    private fun sortText(): String = if (sortByState) "异常优先" else "按编号"
 
     private fun rank(state: SlotState): Int = when (state) {
         SlotState.DOWN -> 0
