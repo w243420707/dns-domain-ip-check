@@ -1,0 +1,17 @@
+* text=auto
+
+# CI 在 Linux 上要直接执行，必须保持 LF
+gradlew text eol=lf
+*.sh text eol=lf
+*.gradle.kts text eol=lf
+*.kt text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+
+# Windows 专用脚本
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+*.jar binary
+*.jks binary
+*.apk binary

@@ -1,0 +1,2 @@
+-dontwarn org.conscrypt.**
+-keep class io.github.w243420707.dnspool.** { *; }

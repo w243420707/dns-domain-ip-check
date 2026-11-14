@@ -1,0 +1,21 @@
+# gradle / ide
+.gradle/
+build/
+*.iml
+.idea/
+local.properties
+
+# 签名（绝不入库）
+*.jks
+*.keystore
+keystore.properties
+signing/
+
+# 构建产物
+dist/
+*.apk
+*.aab
+
+# 日志
+debug.log
+build-*.log
