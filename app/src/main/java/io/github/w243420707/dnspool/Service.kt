@@ -109,7 +109,7 @@ class KeepAliveService : LifecycleService() {
             ACTION_CHECK_CREDS -> runBlockingAction("校验") { engine.checkCredentials() }
             else -> {
                 val s = repo.settings()
-                if (s.autoRun) startLoop() else startAsForeground("已暂停（自动运行已关闭）")
+                if (s.autoRun) startLoop() else startAsForeground("自动运行已关闭，点右侧按钮启动", "已暂停")
             }
         }
         return START_STICKY
@@ -229,9 +229,11 @@ class KeepAliveService : LifecycleService() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        // 用 autoRun 而不是 runState.running 判断：进程刚起来时 runState 可能是上一轮留下的旧值
+        val shouldRun = repo.settings().autoRun
         val toggle = PendingIntent.getService(
             this, 1,
-            Intent(this, KeepAliveService::class.java).setAction(ACTION_STOP),
+            Intent(this, KeepAliveService::class.java).setAction(if (shouldRun) ACTION_STOP else ACTION_START),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -243,12 +245,12 @@ class KeepAliveService : LifecycleService() {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(open)
-            .addAction(R.drawable.ic_stat, "暂停", toggle)
+            .addAction(R.drawable.ic_stat, if (shouldRun) "暂停" else "启动", toggle)
             .build()
     }
 
-    private fun startAsForeground(text: String) {
-        val notification = buildNotification("DNS 池守护", text)
+    private fun startAsForeground(text: String, title: String = "启动中") {
+        val notification = buildNotification(title, text)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
@@ -272,8 +274,7 @@ class KeepAliveService : LifecycleService() {
             "REPAIRED" -> "已自动修复"
             else -> "运行中"
         }
-        updateNotification(title, "正常 ${rs.slotsOk}/${rs.slotsTotal} · 池 ${rs.poolAvailable} · $note")
-    }
+        updateNotification(title, "正常 ${rs.slotsOk}/${rs.slotsTotal} · 池 ${rs.poolAvailable} · $note")    }
 
     private fun acquireWakeLock() {
         if (wakeLock?.isHeld == true) return

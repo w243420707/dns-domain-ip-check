@@ -38,6 +38,7 @@ interface Host {
     fun restartService()
     fun commit(change: (AppSettings) -> AppSettings)
     fun setAutoRun(on: Boolean)
+    fun setAppLock(on: Boolean)
     fun openSlots(filter: Int)
     fun toast(message: String)
     fun confirm(title: String, message: String, positive: String, action: () -> Unit)

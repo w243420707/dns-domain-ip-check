@@ -28,6 +28,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import io.github.w243420707.dnspool.ui.LockOverlay
+import io.github.w243420707.dnspool.ui.PatternStore
 import io.github.w243420707.dnspool.ui.SettingsPage
 import io.github.w243420707.dnspool.ui.SlotsPage
 import io.github.w243420707.dnspool.ui.StatusPage
@@ -36,6 +38,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity(), Host {
+
+    companion object {
+        /** 离开超过这个时长再回来就要重新画图案，免得每次切个通知都要解锁 */
+        private const val AUTO_LOCK_AFTER_MS = 60_000L
+    }
 
     private lateinit var repo: StateRepository
     private lateinit var statusPage: StatusPage
@@ -60,6 +67,8 @@ class MainActivity : AppCompatActivity(), Host {
     private var dirty = false
     private var statsCacheKey = -1L
     private var statsCache: CycleStats? = null
+    private lateinit var lockOverlay: LockOverlay
+    private var lastStopAt = 0L
 
     private val handler = Handler(Looper.getMainLooper())
     private val refreshTick = Runnable { doRefresh() }
@@ -76,8 +85,14 @@ class MainActivity : AppCompatActivity(), Host {
         super.onCreate(savedInstanceState)
         repo = StateRepository.get(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        setContentView(buildRoot())
+
+        val frame = FrameLayout(this)
+        frame.addView(buildRoot(), FrameLayout.LayoutParams(-1, -1))
+        lockOverlay = LockOverlay(this)
+        frame.addView(lockOverlay, FrameLayout.LayoutParams(-1, -1))
+        setContentView(frame)
         applyInsets()
+
         statusPage = StatusPage(this)
         pages[0] = statusPage
         content.removeViewAt(0)
@@ -88,11 +103,17 @@ class MainActivity : AppCompatActivity(), Host {
         if (s.autoRun && s.cfToken.isNotBlank() && s.rootDomain.isNotBlank()) {
             KeepAliveService.command(this, KeepAliveService.ACTION_START)
         }
+        if (PatternStore.isEnabled(this)) lockOverlay.showVerify { }
         requestRefresh()
     }
 
     override fun onStart() {
         super.onStart()
+        if (lastStopAt > 0 && PatternStore.isEnabled(this) &&
+            System.currentTimeMillis() - lastStopAt > AUTO_LOCK_AFTER_MS
+        ) {
+            lockOverlay.showVerify { }
+        }
         if (!receiverRegistered) {
             ContextCompat.registerReceiver(
                 this, stateReceiver, IntentFilter(KeepAliveService.ACTION_STATE),
@@ -105,6 +126,7 @@ class MainActivity : AppCompatActivity(), Host {
 
     override fun onStop() {
         super.onStop()
+        lastStopAt = System.currentTimeMillis()
         handler.removeCallbacks(ageTick)
         handler.removeCallbacks(refreshTick)
         if (receiverRegistered) {
@@ -391,8 +413,34 @@ class MainActivity : AppCompatActivity(), Host {
         requestRefresh()
     }
 
-    override fun openSlots(filter: Int) {
-        ensureSlotsPage()
+    override fun setAppLock(on: Boolean) {
+        if (!on) {
+            lockOverlay.showVerify {
+                PatternStore.clear(this)
+                toast("应用锁已关闭")
+                requestRefresh()
+            }
+            return
+        }
+        if (PatternStore.isEnabled(this)) {
+            toast("应用锁已经开着")
+            return
+        }
+        confirm(
+            "开启应用锁",
+            "开启后每次打开应用、或离开超过 1 分钟回来，都要画一遍图案。\n\n" +
+                "图案只存加盐哈希，不存原文。忘记图案只能卸载重装应用——" +
+                "槽位记录会靠 Cloudflare 备注重新认领，Token 需要重新填一次。",
+            "去设置图案"
+        ) {
+            lockOverlay.showSetup {
+                toast("应用锁已开启")
+                requestRefresh()
+            }
+        }
+    }
+
+    override fun openSlots(filter: Int) {        ensureSlotsPage()
         selectTab(1)
         slotsPage?.setFilter(filter)
     }

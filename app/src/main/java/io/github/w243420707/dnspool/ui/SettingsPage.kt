@@ -46,7 +46,7 @@ class SettingsPage(private val activity: MainActivity) : Page {
     private val conditions = mutableListOf<(AppSettings) -> Unit>()
     private val heads = mutableListOf<LinearLayout>()
     private val bodies = mutableListOf<LinearLayout>()
-    private val expanded = booleanArrayOf(true, false, false, false)
+    private val expanded = booleanArrayOf(true, false, false, false, false)
     private val envUpdaters = mutableListOf<() -> Unit>()
 
     private lateinit var box: LinearLayout
@@ -72,6 +72,7 @@ class SettingsPage(private val activity: MainActivity) : Page {
         fillCloudflare(startGroup(1, "Cloudflare"))
         fillAdvanced(startGroup(2, "高级"))
         fillEnv(startGroup(3, "运行环境"))
+        fillSafety(startGroup(4, "安全"))
         box.addView(ctx.vSpace(10))
         box.addView(buildDanger(), LinearLayout.LayoutParams(-1, -2).apply {
             leftMargin = px(Dimens.PAGE_PAD)
@@ -109,7 +110,8 @@ class SettingsPage(private val activity: MainActivity) : Page {
         0 -> "${PortParser.format(s.ports).ifEmpty { "端口未填" }} · N=${s.slotCount}"
         1 -> "${if (s.cfToken.isBlank()) "Token 未填" else "Token 已填"} · ${s.slotCount}/${s.recordLimit}"
         2 -> "并发 ${s.probeConcurrency} · 超时 ${s.connectTimeoutMs}ms"
-        else -> "通知 ${notifyState()} · 电池 ${batteryState()}"
+        3 -> "通知 ${notifyState()} · 电池 ${batteryState()}"
+        else -> if (PatternStore.isEnabled(ctx)) "应用锁 已开启" else "应用锁 未开启"
     }
 
     /* ------------------------------ 运行环境 ------------------------------ */
@@ -121,8 +123,17 @@ class SettingsPage(private val activity: MainActivity) : Page {
         return if (pm == null || pm.isIgnoringBatteryOptimizations(ctx.packageName)) "已放行" else "受限"
     }
 
-    private fun fillEnv(body: LinearLayout) {
-        val notifyRow = ctx.settingRow("通知权限", notifyState()) {
+    private fun fillSafety(body: LinearLayout) {
+        val lockRow = ctx.settingRow("应用锁", if (PatternStore.isEnabled(ctx)) "已开启" else "未开启") {
+            host.setAppLock(!PatternStore.isEnabled(ctx))
+        }
+        body.addView(lockRow)
+        envUpdaters += {
+            lockRow.rowValue()?.setTextIfChanged(if (PatternStore.isEnabled(ctx)) "已开启" else "未开启")
+        }
+    }
+
+    private fun fillEnv(body: LinearLayout) {        val notifyRow = ctx.settingRow("通知权限", notifyState()) {
             if (activity.hasNotificationPermission()) host.toast("通知已允许")
             else activity.requestNotificationPermission()
         }
@@ -369,13 +380,16 @@ class SettingsPage(private val activity: MainActivity) : Page {
     /* ------------------------------ 渲染 ------------------------------ */
 
     override fun render(snap: UiSnapshot) {
-        // 权限状态不在 settings 里，每次渲染都要刷一遍
-        envUpdaters.forEach { it() }
         val s = snap.settings
+        current = s
+        // 权限 / 锁状态不在 settings 里，每次渲染都要刷一遍（行值 + 组头摘要）
+        envUpdaters.forEach { it() }
+        heads.forEachIndexed { i, head ->
+            head.groupSummary()?.setTextIfChanged(summary(i, s, snap.okCount))
+        }
         if (s == lastSettings && snap.okCount == lastOk) return
         lastSettings = s
         lastOk = snap.okCount
-        current = s
         updaters.forEach { it(s) }
         conditions.forEach { it(s) }
         heads.forEachIndexed { i, head ->
