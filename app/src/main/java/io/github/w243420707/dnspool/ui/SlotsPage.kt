@@ -179,7 +179,7 @@ class SlotsPage(private val activity: MainActivity) : Page {
             rv.visibility = View.GONE
             emptyText.visibility = View.VISIBLE
             emptyText.setTextIfChanged(
-                if (totalCount == 0) "还没有槽位，先在设置里填好域名与 Token，然后点「重建」"
+                if (totalCount == 0) "还没有槽位，填好设置后点「重建」"
                 else "这个筛选下没有槽位"
             )
         } else {

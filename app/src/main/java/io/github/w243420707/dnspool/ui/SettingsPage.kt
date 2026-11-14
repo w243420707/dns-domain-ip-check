@@ -105,7 +105,7 @@ class SettingsPage(private val activity: MainActivity) : Page {
 
     private fun summary(index: Int, s: AppSettings, ok: Int): String = when (index) {
         0 -> "${PortParser.format(s.ports).ifEmpty { "端口未填" }} · N=${s.slotCount}"
-        1 -> "${if (s.cfToken.isBlank()) "Token 未填" else "Token 已填"} · $ok/${s.recordLimit}"
+        1 -> "${if (s.cfToken.isBlank()) "Token 未填" else "Token 已填"} · ${s.slotCount}/${s.recordLimit}"
         else -> "并发 ${s.probeConcurrency} · 超时 ${s.connectTimeoutMs}ms"
     }
 

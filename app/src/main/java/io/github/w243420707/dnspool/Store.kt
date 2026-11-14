@@ -106,6 +106,22 @@ class LogRing(private val dir: File, private val memoryLimit: Int = 300) {
     private val memory = ArrayDeque<LogEntry>()
     private val maxBytes = 512 * 1024L
 
+    init {
+        // 进程重启后把磁盘上的尾部日志捞回内存，否则「日志」页在新进程里永远是空的
+        runCatching {
+            val f = File(dir, "cycle.log")
+            if (f.exists()) {
+                f.readLines().takeLast(memoryLimit).forEach { line ->
+                    val parts = line.split(' ', limit = 3)
+                    val at = parts.getOrNull(0)?.toLongOrNull()
+                    if (parts.size == 3 && at != null) {
+                        memory.addLast(LogEntry(at, parts[1], parts[2]))
+                    }
+                }
+            }
+        }
+    }
+
     @Synchronized
     fun add(level: String, text: String) {
         val entry = LogEntry(System.currentTimeMillis(), level, text.take(500))

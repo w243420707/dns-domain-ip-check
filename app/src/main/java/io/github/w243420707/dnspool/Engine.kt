@@ -234,7 +234,7 @@ class PollEngine(private val repo: StateRepository) {
                     zoneId, recordId,
                     CfRecordPatch(content = cand.ip, comment = comment, ttl = s.ttlSec)
                 )
-                log.add("I", "槽位 ${slot.index} ${slot.name}：${slot.ip ?: "-"} → ${cand.ip}（${verify.avgRttMs}ms）")
+                log.add("I", "槽位 ${slot.index} ${slot.name}：${slot.ip ?: "-"} -> ${cand.ip}（${verify.avgRttMs}ms）")
                 slot.copy(
                     ip = cand.ip, comment = comment, state = SlotState.OK,
                     consecutiveFailures = 0, lastProbeAt = now, lastOkAt = now,

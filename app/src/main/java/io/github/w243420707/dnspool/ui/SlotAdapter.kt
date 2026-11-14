@@ -73,7 +73,9 @@ class SlotAdapter(
             fail = ctx.para("", Dimens.LABEL, R.color.danger).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 visibility = View.GONE
+                // 和左边的「—」留出间隔，否则会读成「—×2」一个词
                 layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
+                    .apply { marginStart = ctx.dp(8) }
             }
             row.addView(dot)
             row.addView(idx)

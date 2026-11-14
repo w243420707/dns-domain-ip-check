@@ -3,12 +3,14 @@ package io.github.w243420707.dnspool.ui
 import android.graphics.Typeface
 import android.os.PowerManager
 import android.text.TextUtils
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.widget.TextViewCompat
 import io.github.w243420707.dnspool.Dimens
 import io.github.w243420707.dnspool.Host
 import io.github.w243420707.dnspool.MainActivity
@@ -80,7 +82,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         scroll.addView(box)
 
         tipsBar = buildTips()
-        box.addView(tipsBar, h(-2))
+        box.addView(tipsBar, h(-2).apply { bottomMargin = ctx.dp(10) })
         box.addView(buildBand(), h(ctx.dp(Dimens.BAND_H)))
         box.addView(ctx.vSpace(12))
         box.addView(buildActions(), h(ctx.dp(Dimens.ACT_H)))
@@ -170,7 +172,15 @@ class StatusPage(private val activity: MainActivity) : Page {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
             }
-            val value = ctx.monoPara("—", Dimens.NUM, R.color.text).apply { gravity = Gravity.CENTER }
+            val value = ctx.monoPara("—", Dimens.NUM, R.color.text).apply {
+                gravity = Gravity.CENTER
+                setPadding(ctx.dp(2), 0, ctx.dp(2), 0)
+                maxLines = 1
+            }
+            // 额度格可能是 2000/1000 这种长串，按格宽自动缩字号，避免顶到分隔线
+            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                value, 11, 18, 1, TypedValue.COMPLEX_UNIT_SP
+            )
             val caption = ctx.para(label, Dimens.LABEL, R.color.sub).apply {
                 gravity = Gravity.CENTER
                 setPadding(0, ctx.dp(1), 0, 0)
@@ -350,7 +360,7 @@ class StatusPage(private val activity: MainActivity) : Page {
         when {
             snap.total == 0 -> {
                 allOkLine.visibility = View.VISIBLE
-                allOkLine.setTextIfChanged("还没有槽位，先在设置里填好域名与 Token，然后点「重建」")
+                allOkLine.setTextIfChanged("还没有槽位，填好设置后点「重建」")
             }
             bad.isEmpty() -> {
                 allOkLine.visibility = View.VISIBLE
@@ -363,16 +373,25 @@ class StatusPage(private val activity: MainActivity) : Page {
         val st = snap.stats
         val dur = if (rs.lastCycleMs > 0) rs.lastCycleMs else (st?.durationMs ?: 0L)
         val durText = if (dur > 0) String.format(Locale.CHINA, "%.1fs", dur / 1000.0) else "—"
-        val clock = if (rs.lastCycleAt > 0) fmtClock(rs.lastCycleAt) else "--:--:--"
         summaryLine.setTextIfChanged(
-            "$clock · $durText · 探测 ${st?.ipsProbed ?: 0}/${st?.ipsPassed ?: 0} · 修复 ${st?.repairs ?: 0}"
+            if (rs.lastCycleAt <= 0 && st == null) {
+                "还没有跑过一轮"
+            } else {
+                val clock = fmtClock(rs.lastCycleAt)
+                "$clock · $durText · 探测 ${st?.ipsProbed ?: 0}/${st?.ipsPassed ?: 0} · 修复 ${st?.repairs ?: 0}"
+            }
         )
 
         val logs = snap.logs.reversed()
         logLines.forEachIndexed { i, line ->
             val entry = logs.getOrNull(i)
             if (entry == null) {
-                line.visibility = View.GONE
+                // 空态落在第一行，不留大片空白
+                line.visibility = if (i == 0) View.VISIBLE else View.GONE
+                if (i == 0) {
+                    line.setTextIfChanged("还没有日志")
+                    line.setTextColorIfChanged(ctx.color(R.color.sub))
+                }
             } else {
                 line.visibility = View.VISIBLE
                 line.setTextIfChanged("${fmtClock(entry.at)} ${entry.text}")

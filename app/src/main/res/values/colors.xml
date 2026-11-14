@@ -10,4 +10,5 @@
     <color name="warn">#F2C14E</color>
     <color name="danger">#F2605C</color>
     <color name="info">#6FAEFF</color>
+    <color name="ic_launcher_background">#12151C</color>
 </resources>
